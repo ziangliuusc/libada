@@ -4,7 +4,7 @@ import rospy
 import numpy as np
 import time
 
-use_tRRT = False
+use_tRRT = True
 use_APFRRT = False
 
 
@@ -225,9 +225,12 @@ class AdatRRT():
         """
         print("Distance: ", self.ada.get_distance_to_obstacle(self.ada.get_arm_state_space(), self.ada.get_arm_skeleton(), self.obstacles, new_node_state))
 
+        print("Collision: ", not self.ada_collision_constraint.is_satisfied(self.ada.get_arm_state_space(),
+                                                          self.ada.get_arm_skeleton(), new_node_state))
+
         if self.ada_collision_constraint is None:
             return False
-        return self.ada_collision_constraint.is_satisfied(self.ada.get_arm_state_space(),
+        return not self.ada_collision_constraint.is_satisfied(self.ada.get_arm_state_space(),
                                                           self.ada.get_arm_skeleton(), new_node_state)
 
 
@@ -244,6 +247,13 @@ def main():
     rho_r = 0.6
     rho_t = 1.0 - rho_r
 
+    D_THETA = 5
+    D_DIST = 0.2
+
+    ATTRACTIVE_GAIN = 10000.0
+    REPULSIVE_GAIN = 15.0
+
+
     if sim:
         ada.set_positions(armHome)
 
@@ -254,14 +264,18 @@ def main():
     canURDFUri = "package://pr_assets/data/objects/can.urdf"
     sodaCanPose = [0.25, -0.35, 0.0, 0, 0, 0, 1]
     tableURDFUri = "package://pr_assets/data/furniture/uw_demo_table.urdf"
-    tablePose = [0.3, 0.0, -0.7, 0.707107, 0, 0, 0.707107]
+    tablePose = [0.3, 0.0, -0.0, 0.707107, 0, 0, 0.707107]
     world = ada.get_world()
     can = world.add_body_from_urdf(canURDFUri, sodaCanPose)
-    table = world.add_body_from_urdf(tableURDFUri, tablePose)
+    # table = world.add_body_from_urdf(tableURDFUri, tablePose)
+
+    boxURDFUri = "package://pr_assets/data/objects/box.urdf"
+    boxPose = [0.28, -0.4, 0.3, 0, 0, 0, 1]
+    box = world.add_body_from_urdf(boxURDFUri, boxPose)
 
     # add collision constraints
     collision_free_constraint = ada.set_up_collision_detection(ada.get_arm_state_space(),
-                                                               ada.get_arm_skeleton(), [can, table])
+                                                               ada.get_arm_skeleton(), [can, box])
     full_collision_constraint = ada.get_full_collision_constraint(
             ada.get_arm_state_space(),
             ada.get_arm_skeleton(),
@@ -277,7 +291,7 @@ def main():
         goal_precision=eps,
         rho_r = rho_r,
         rho_t = rho_t,
-        obstacles = [can])
+        obstacles = [can, box])
 
     rospy.sleep(1.0)
 
@@ -290,6 +304,10 @@ def main():
             waypoints.append((0.0 + i, waypoint))
 
         traj = ada.compute_joint_space_path(ada.get_arm_state_space(), waypoints)
+        print("Path obstacle clear distance:")
+        for i, waypoint in enumerate(path):
+            print(adatRRT.ada.get_distance_to_obstacle(adatRRT.ada.get_arm_state_space(), adatRRT.ada.get_arm_skeleton(), adatRRT.obstacles, waypoint))
+        
         raw_input('Press ENTER to execute trajectory and exit')
         ada.execute_trajectory(traj)
         rospy.sleep(10.0)

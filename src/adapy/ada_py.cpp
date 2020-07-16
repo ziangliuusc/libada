@@ -4,6 +4,7 @@
 #include <pybind11/eigen.h>
 #include <pybind11/cast.h>
 #include <pybind11/stl.h>
+#include <limits>
 
 #include "libada/Ada.hpp"
 #include "aikido/statespace/ScopedState.hpp"
@@ -99,7 +100,8 @@ void Ada(pybind11::module& m) {
               for (const auto& envSkeleton : envSkeletons) {
                 envCollisionGroup->addShapeFramesOf(envSkeleton.get());
               }
-              double dist = collisionDetector->distance(armCollisionGroup.get(), envCollisionGroup.get());
+              dart::collision::DistanceOption option(true, -std::numeric_limits<double>::infinity(), nullptr);
+              double dist = collisionDetector->distance(armCollisionGroup.get(), envCollisionGroup.get(), option);
 
               armSpace->setState(armSkeleton.get(), currentState);
              return dist;
