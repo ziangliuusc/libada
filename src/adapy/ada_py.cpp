@@ -78,6 +78,32 @@ void Ada(pybind11::module& m) {
               const aikido::constraint::dart::CollisionFreePtr& collisionFreeConstraint) -> aikido::constraint::TestablePtr {
              return self->getFullCollisionConstraint(armSpace, armSkeleton, collisionFreeConstraint);
            })
+      // Testing this distance function...
+      .def("get_distance_to_obstacle",
+           [](ada::Ada *self,
+              const aikido::statespace::dart::MetaSkeletonStateSpacePtr &armSpace,
+              const dart::dynamics::MetaSkeletonPtr& armSkeleton,
+              const std::vector<dart::dynamics::SkeletonPtr>& envSkeletons,
+              const Eigen::VectorXd& positions) -> double {
+              dart::collision::FCLCollisionDetectorPtr collisionDetector = dart::collision::FCLCollisionDetector::create();
+              // save previous state
+              auto armState = armSpace->createState();
+              armSpace->convertPositionsToState(positions, armState);
+              auto currentState = armSpace->getScopedStateFromMetaSkeleton(armSkeleton.get());
+              armSpace->setState(armSkeleton.get(), armState);
+
+              std::shared_ptr<dart::collision::CollisionGroup> armCollisionGroup =
+                  collisionDetector->createCollisionGroup(armSkeleton.get());
+              std::shared_ptr<dart::collision::CollisionGroup> envCollisionGroup =
+                  collisionDetector->createCollisionGroup();
+              for (const auto& envSkeleton : envSkeletons) {
+                envCollisionGroup->addShapeFramesOf(envSkeleton.get());
+              }
+              double dist = collisionDetector->distance(armCollisionGroup.get(), envCollisionGroup.get());
+
+              armSpace->setState(armSkeleton.get(), currentState);
+             return dist;
+           })
       .def("compute_joint_space_path",
            [](ada::Ada *self,
               const aikido::statespace::dart::MetaSkeletonStateSpacePtr &stateSpace,

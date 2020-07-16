@@ -39,4 +39,4 @@ if not rospy.is_shutdown():
     traj = ada.compute_joint_space_path(arm_state_space, waypoints)
     ada.execute_trajectory(traj)
 
-    rospy.sleep(1.0)
+    rospy.sleep(10.0)
